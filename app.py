@@ -115,6 +115,85 @@ def create_app(test_config=None):
             'deleted': actor_id
         })
 
+    @app.route('/movies', methods=['GET'])
+    def get_movies():
+        movies = Movie.query.all()
+        movies_paginated = paginate_results(request, movies)
+
+        if len(movies_paginated) == 0:
+            abort(404)
+
+        return jsonify({
+            'success': True,
+            'movies': movies_paginated
+        })
+
+    @app.route('/movies', methods=['POST'])
+    def insert_movies():
+        body = request.get_json()
+
+        if not body:
+            abort(400)
+
+        title = body.get('title', None)
+        release_date = body.get('release_date', None)
+
+        if not title or not release_date:
+            abort(422)
+
+        new_movie = (Movie(title=title, release_date=release_date))
+        new_movie.insert()
+
+        return jsonify({
+            'success': True,
+            'created': new_movie.id
+        })
+
+    @app.route('/movies/<movie_id>', methods=['PATCH'])
+    def edit_movies(movie_id):
+        body = request.get_json()
+
+        if not movie_id or not body:
+            abort(400)
+
+        movie_to_update = Movie.query.filter(
+            Movie.id == movie_id).one_or_none()
+
+        if not movie_to_update:
+            abort(404)
+
+        title = body.get('title', movie_to_update.title)
+        release_date = body.get('release_date', movie_to_update.release_date)
+
+        movie_to_update.title = title
+        movie_to_update.release_date = release_date
+
+        movie_to_update.update()
+
+        return jsonify({
+            'success': True,
+            'edited': movie_to_update.id,
+            'movie': [movie_to_update.format]
+        })
+
+    @app.route('/movies/<movie_id>', methods=['DELETE'])
+    def delete_movies(movie_id):
+        if not movie_id:
+            abort(400)
+
+        movie_to_delete = Movie.query.filter(
+            Movie.id == movie_id).one_or_none()
+
+        if not movie_to_delete:
+            abort(404)
+
+        movie_to_delete.delete()
+
+        return jsonify({
+            'success': True,
+            'deleted': movie_id
+        })
+
     @app.errorhandler(500)
     def unprocessable(error):
         return jsonify({
